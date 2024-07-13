@@ -6,6 +6,10 @@ setup(
     version='1.0.5',
     license='MIT',
     packages=[root_package] + [f"{root_package}.{item}" for item in find_packages(root_package)],
+    package_data= {
+        # all .dat files at any package depth
+        '': ['*/*/*.json', '*/*/*.pt'],
+    },
     include_package_data=True,
     install_requires=[
     'aiohttp==3.9.5',
