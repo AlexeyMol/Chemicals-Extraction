@@ -1,8 +1,8 @@
 Эта библиотека предназначена для извлечения названий химических структур из текстов на русском и английском языках. В библиотеке три основные функции, которые могут быть использованы независимо друг от друга: извлечение названий химических структур из текстов на русском и английском языках, преобразования и сохранения их в MOL формате и стандартизации mol формата.
 Для извлечения названий химических структур была обученя кроссязыковая модель на базе mBert. Для сохранения химических структур в MOL формате используется модифицированная онтология PubChem. Для стандартизации была обучена модель с применением графовых нейронных сетей.
 # Системные требования к рабочей станции
-- CPU  8 ядер с частотой не менее 4Ггц
-- RAM 32 ГБ не менее
+- CPU не менее 8 ядер с частотой не менее 4Ггц
+- RAM не менее 32 ГБ 
 - SSD nvme не менее 1.5 ТБ
 - GPU уровня 4060TI 16GB или мощнее
 # Требования к ПО
@@ -27,7 +27,7 @@ make install # may need sudo
 ```
 Полную инструкцию по установке можете найти на <a href = "https://github.com/pgvector/pgvector?tab=readme-ov-file">в официальном гитхаб проекте</a>.
 
-Скачиваете <a href=#>Дамп базы данных молекул</a>.
+Скачиваете <a href=[#](http://92.63.99.164/data/)>Дамп базы данных молекул</a>.
 после того как разархивируете его разверните его с помощью psql:
 ```bash
 sudo su
@@ -50,6 +50,7 @@ CREATE INDEX ON public.compound_titles USING hnsw (vector vector_cosine_ops) WIT
 где параметры maintenance_work_mem и max_parallel_maintenance_workers выстовляются соответствующие вашей рабочей станции.
 
 Далее заходим в корневой каталог вашего проекта и создаем виртуальное окружение:
+
 ```bash
 mkdir my_python_project
 cd my_python_project
@@ -84,36 +85,21 @@ pip install psycopg2 langdetect torch torch_geometric
 
 pip install git+<git link>
 ```
-# Пример использования:
-```python
-from ChemicalStructures import ChemicalStructures
 
-def main():
-    # """
-    # Основная функция.
-    # """
-    # Загрузка токенизатора и модели
-
-    with ChemicalStructures("chem_db_vector", "postgres", "4847", "localhost", "5432") as chem_struct:
-        with open("./d5b5469ffc744968b3d68fe80217b552.pdf.txt", "+r") as file:
-            text = " ".join(file.readlines()).replace("\n", " ").replace("\r", " ")
-            chem_struct.GetChemicalStructuresFromText(text)
-
-        # chem_struct.test("пенициллинацилаза.mol", False, "sds.std.mol")
-if __name__ == "__main__":
-    main()
-```
-
+# Api reference:
+[a relative link](ChemStructures.md)
 # Входные данные:
 <p><b>chemical_structure_dict:</b> словарь, содержащий информацию о химической структуре.
 <p><b>chemical_structures_list:</b> список словарей, содержащих информацию о химических cтруктурах. </p>
 <p><b>path_to_file:</b> путь к файлу, содержащему химическую структуру в формате mol. </p>
-<p><b>path_to_folder</b>: путь к папке, в которую будут сохранены mol файлы. </p>
+<p><b>path_to_folder:</b> путь к папке, в которую будут сохранены mol файлы. </p>
 <p><b>file_prefix:</b> префикс для имен файлов.</p>
+
 # Выходные данные:
 Inchi code: Inchi код химической структуры.
 List of Inchi codes: список Inchi кодов химических структур.
 Standardized mol file: mol файл, стандартизированный с помощью StandardizerTask.
+
 # Функции
 Получает Inchi для химической структуры.
 
@@ -137,20 +123,37 @@ StandardizeMolFile(path_to_file)
 ```
 
 
-# Пример использования
+# Пример использования:
 ```python
+<<<<<<< HEAD
+from ChemicalStructures import ChemicalStructures
+=======
 # Получение Inchi для химической структуры
 inchi_code = GetChemicalStructureInchi({'language': 'en', 'name': 'Ethylbenzene'})
+>>>>>>> 5e2517c96317e0ecfd33b3e8fc8fb354a3213701
 
-# Сохранение химической структуры в mol файл
-SaveChemicalStructureToMol({'language': 'en', 'name': 'Ethylbenzene'}, 'ethylbenzene.mol')
+def main():
+    # """
+    # Основная функция.
+    # """
+    # Загрузка токенизатора и модели
 
-# Стандартизация mol файла
-StandardizeMolFile('ethylbenzene.mol')
+    with ChemicalStructures("chem_db_vector", "postgres", "4847", "localhost", "5432") as chem_struct:
+        with open("./d5b5469ffc744968b3d68fe80217b552.pdf.txt", "+r") as file:
+            text = " ".join(file.readlines()).replace("\n", " ").replace("\r", " ")
+            chem_struct.GetChemicalStructuresFromText(text)
+
+        # chem_struct.test("пенициллинацилаза.mol", False, "sds.std.mol")
+if __name__ == "__main__":
+    main()
 ```
+
+
 ## Ошибки
 В случае возникновения ошибки при выполнении функций будет выведено сообщение в STDOUT.
 
+<<<<<<< HEAD
+=======
 # Требования:
 ```
 Python 3.6+
@@ -163,3 +166,5 @@ rdkit
 Запустите скрипт main.py.
 Поддержка
 Если у вас возникнут проблемы с использованием проекта, пожалуйста, свяжитесь со мной.
+
+>>>>>>> 5e2517c96317e0ecfd33b3e8fc8fb354a3213701

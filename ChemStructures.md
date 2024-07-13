@@ -37,9 +37,6 @@ cs.VectorizeData()
 # Получение названий химических структур из базы данных
 names = cs.GetChemicalStructuresNames('vector')
 
-# Сохранение одной химической структуры в mol формате без стандартизации
-cs.SaveSingleChemStructerToMolWithoutStandartization({'name': 'name', 'language': 'ru'}, 'path_to_file')
-
 # Стандартизация mol файла
 cs.StandartizeMolFile('path_to_file')
 
