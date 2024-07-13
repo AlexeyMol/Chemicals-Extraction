@@ -27,7 +27,7 @@ make install # may need sudo
 ```
 Полную инструкцию по установке можете найти на <a href = "https://github.com/pgvector/pgvector?tab=readme-ov-file">в официальном гитхаб проекте</a>.
 
-Скачиваете <a href=[#](http://92.63.99.164/data/)>Дамп базы данных молекул</a>.
+Скачиваете <a href="http://92.63.99.164/data/">Дамп базы данных молекул</a>.
 после того как разархивируете его разверните его с помощью psql:
 ```bash
 sudo su
@@ -87,7 +87,7 @@ pip install git+<git link>
 ```
 
 # Api reference:
-[a relative link](ChemStructures.md)
+[ChemStructers API reference](ChemStructures.md)
 # Входные данные:
 <p><b>chemical_structure_dict:</b> словарь, содержащий информацию о химической структуре.
 <p><b>chemical_structures_list:</b> список словарей, содержащих информацию о химических cтруктурах. </p>
@@ -125,12 +125,8 @@ StandardizeMolFile(path_to_file)
 
 # Пример использования:
 ```python
-<<<<<<< HEAD
-from ChemicalStructures import ChemicalStructures
-=======
 # Получение Inchi для химической структуры
 inchi_code = GetChemicalStructureInchi({'language': 'en', 'name': 'Ethylbenzene'})
->>>>>>> 5e2517c96317e0ecfd33b3e8fc8fb354a3213701
 
 def main():
     # """
@@ -152,8 +148,6 @@ if __name__ == "__main__":
 ## Ошибки
 В случае возникновения ошибки при выполнении функций будет выведено сообщение в STDOUT.
 
-<<<<<<< HEAD
-=======
 # Требования:
 ```
 Python 3.6+
@@ -167,4 +161,3 @@ rdkit
 Поддержка
 Если у вас возникнут проблемы с использованием проекта, пожалуйста, свяжитесь со мной.
 
->>>>>>> 5e2517c96317e0ecfd33b3e8fc8fb354a3213701
