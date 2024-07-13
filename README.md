@@ -115,29 +115,31 @@ Inchi code: Inchi код химической структуры.
 List of Inchi codes: список Inchi кодов химических структур.
 Standardized mol file: mol файл, стандартизированный с помощью StandardizerTask.
 # Функции
+Получает Inchi для химической структуры.
+
 ```python
 GetChemicalStructureInchi(chemical_structure_dict)
 ```
-Получает Inchi код для химической структуры.
+Получает список Inchi кодов для массива химических структур.
 
 ```python
 GetChemicalStructuresInchi(chemical_structures_list)
 ```
-Получает список Inchi кодов для массива химических структур.
+Сохраняет химическую структуру в mol файл.
+
 ```python
 SaveChemicalStructureToMol(chemical_structure_dict, path_to_file)
 ```
-Сохраняет химическую структуру в mol файл.
+Стандартизирует mol файл.
 
 ```python
 StandardizeMolFile(path_to_file)
 ```
 
-Стандартизирует mol файл.
 
 # Пример использования
 ```python
-# Получение Inchi кода для химической структуры
+# Получение Inchi для химической структуры
 inchi_code = GetChemicalStructureInchi({'language': 'en', 'name': 'Ethylbenzene'})
 
 # Сохранение химической структуры в mol файл
