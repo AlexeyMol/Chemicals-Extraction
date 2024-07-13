@@ -9,6 +9,7 @@ setup(
     include_package_data=True,
     install_requires=[
     'aiohttp==3.9.5',
+    'beautifulsoup4',
     'aiosignal==1.3.1',
     'attrs==23.2.0',
     'certifi==2024.6.2',
