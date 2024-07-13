@@ -8,7 +8,7 @@ setup(
     packages=[root_package] + [f"{root_package}.{item}" for item in find_packages(root_package)],
     package_data= {
         # all .dat files at any package depth
-        '': ['*/*/*.json', '*/*/*.pt'],
+        '': ['./GNNT/ckp/*.json', './GNNT/ckp/*.pt'],
     },
     include_package_data=True,
     install_requires=[
