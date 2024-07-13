@@ -339,7 +339,8 @@ class ChemicalStructures():
                 f_file_name)[0] + file_name + "_standardized.mol"
             if not mol:
                 mol = Chem.MolFromMolFile(path_to_file)
-            s_mol = StandardizerTask.predict_mol(mol, False, True)
+            stdrz = StandardizerTask()
+            s_mol = stdrz.predict_mol(mol, False, True)
             with open(st_file_path, 'w') as f:
                 b_mol = Chem.MolToMolBlock(s_mol)
                 f.write(b_mol)
