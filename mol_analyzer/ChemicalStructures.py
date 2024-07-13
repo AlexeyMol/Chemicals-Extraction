@@ -239,16 +239,15 @@ class ChemicalStructures():
                 f"SELECT * FROM public.compound_titles ORDER BY vector <-> '{vector}' LIMIT {limit_row}")
             return cursor.fetchall()
         
-    def standartize_mol_file(self, path:str, data: str):
+    def standartize_mol_file(self, data: str):
         """
         Функция стандартизации мол файла.
         Аргументы:
-        path (str): Путь для сохранения файла.
         data (str): Путь к Молекулярному файлу в формате mol.
         Возвращает:
         str: Стандартизированный молекулярный файл в формате SMILES.
         """
-        self.__StandardizeMolFile__(path, data)
+        self.__StandardizeMolFile__(data)
     
     def get_inchi_by_pubchem_index(self, index):
         self.curs.execute(f"SELECT inchi FROM public.pubchem_database WHERE pubchem_index = '{index}';")
