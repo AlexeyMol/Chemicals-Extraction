@@ -258,7 +258,7 @@ class ChemicalStructures():
         self.curs.execute(f"SELECT inchi FROM public.pubchem_database WHERE pubchem_index in '{indexes}';")
         return self.curs.fetchall()
 
-    def __benchmark(self, text, type_search="cosine", save_file=True, benchmark=False):
+    def benchmark(self, text, type_search="cosine", save_file=True, benchmark=False):
         t1 = time.time()
         r = self.GetChemicalStructuresFromText(text,type_search, save_file, benchmark=True)
         t2 = time.time()
