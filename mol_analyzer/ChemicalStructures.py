@@ -162,7 +162,7 @@ class ChemicalStructures():
             return extract.extract_chemicals_from_text(text)
 
     # получение химических структур из текста
-    def GetChemicalStructuresFromText(self, text, type_search="cosine", save_file=True):
+    def GetChemicalStructuresFromText(self, text, type_search="cosine", save_file=True, benchmark=False):
         """
         Функция для извлечения химических структур из текста.
 
@@ -184,6 +184,7 @@ class ChemicalStructures():
             for text in chem_structures:
                 vector = vectorize_text(text, True, tokenizer=self.tokenizer, device=self.device, model=self.model)
                 pubchem_index=None
+                if (benchmark):continue
                 if type_search == "cosine":
                     pubchem_index = self.get_vector_row_by_cosine(vector,1)[0]
                 elif type_search == "L1":
@@ -256,6 +257,13 @@ class ChemicalStructures():
     def get_inchi_list_by_pubchem_indexes(self, indexes):
         self.curs.execute(f"SELECT inchi FROM public.pubchem_database WHERE pubchem_index in '{indexes}';")
         return self.curs.fetchall()
+
+    def __benchmark(self, text, type_search="cosine", save_file=True, benchmark=False):
+        t1 = time.time()
+        r = self.GetChemicalStructuresFromText(text,type_search, save_file, benchmark=True)
+        t2 = time.time()
+        print("Function=%s, Time=%s" % (func.__name__, t2 - t1))
+        print(len(text))
 
     # сохранение выделенных в тексте химических структур в mol формате без стандартизации
     def ChemicalStructuresToMol(self, chemical_structures_list, path_to_folder, file_prefix):
