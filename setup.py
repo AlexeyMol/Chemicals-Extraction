@@ -28,7 +28,7 @@ setup(
     'numpy==1.26.4',
     'pandas==2.2.2',
     'pillow==10.4.0',
-    'psycopg2'
+    'psycopg2',
     'psutil==6.0.0',
     'pyparsing==3.1.2',
     'python-dateutil==2.9.0.post0',
