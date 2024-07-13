@@ -263,7 +263,7 @@ class ChemicalStructures():
         t1 = time.time()
         r = self.GetChemicalStructuresFromText(text,type_search, save_file, benchmark=True)
         t2 = time.time()
-        print("Function=%s, Time=%s" % (func.__name__, t2 - t1))
+        print("Function=%s, Time=%s" % (self.GetChemicalStructuresFromText.__name__, t2 - t1))
         print(len(text))
 
     # сохранение выделенных в тексте химических структур в mol формате без стандартизации

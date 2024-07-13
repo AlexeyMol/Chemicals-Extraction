@@ -3,7 +3,7 @@ root_package = "mol_analyzer"
 print(find_packages())
 setup(
     name='chemical_extraction',
-    version='1.0.2',
+    version='1.0.3',
     license='MIT',
     packages=[root_package] + [f"{root_package}.{item}" for item in find_packages(root_package)],
     include_package_data=True,
