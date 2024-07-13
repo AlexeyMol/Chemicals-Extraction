@@ -16,6 +16,7 @@ from .extraction import Extractor
 import pandas as pd
 from transformers import BertTokenizer, BertModel
 from torch import cuda
+import time
 class ChemicalStructures():
     """
     Основной класс для анализа обработки химических и биохимических текстов.
