@@ -8,7 +8,7 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem.rdchem import Mol
 from torch_geometric.data import Data
 from tqdm import tqdm as default_tqdm
-
+import os
 from .data_analysis import normalize_sample, denorm_result, convert_to_one_hot, from_one_hot, OH_EXCLUDE_NODE_FEATS
 from .data_ondisk import ChemDataset
 from .data_preprocess import Sample, mol_to_graph, graph_to_mol
@@ -31,13 +31,18 @@ class StandardizerTask:
         :param ondisk_dataset: использовать датасет на диске
         :param tqdm: функция прогресс-бара
         """
-        self.model_home = Path(model_home)
+        this_dir, this_filename = os.path.split(__file__)
+
+        DATA_PATH = os.path.join(this_dir, "ckp")
+        print(DATA_PATH)
+        self.model_home = Path(DATA_PATH)
         self.model_home.mkdir(parents=True, exist_ok=True)
 
         self.name = name
         self.one_hot = one_hot
         self.ckp_name = load_ckp
         self.ondisk_dataset = ondisk_dataset
+
 
         self.tqdm = tqdm or default_tqdm
 
