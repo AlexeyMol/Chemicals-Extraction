@@ -185,7 +185,6 @@ class ChemicalStructures():
             for text in chem_structures:
                 vector = vectorize_text(text, True, tokenizer=self.tokenizer, device=self.device, model=self.model)
                 pubchem_index=None
-                print(vector, chem_structures)
                 if (benchmark):continue
                 if type_search == "cosine":
                     pubchem_index = self.get_vector_row_by_cosine(vector,1)[0]
