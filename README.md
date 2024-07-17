@@ -140,9 +140,7 @@ StandardizeMolFile(path_to_file)
 
 # Пример использования:
 ```python
-# Получение Inchi для химической структуры
-inchi_code = GetChemicalStructureInchi({'language': 'en', 'name': 'Ethylbenzene'})
-
+from mol_analyzer  import ChemicalStructures as bt
 
 def main():
     # """
@@ -150,14 +148,11 @@ def main():
     # """
     # Загрузка токенизатора и модели
 
-
-    with ChemicalStructures("chem_db_vector", "postgres", "4847", "localhost", "5432") as chem_struct:
+    with bt.ChemicalStructures("chem_db_vector", "postgres", "4847", "localhost", "5432") as chem_struct:
         with open("./d5b5469ffc744968b3d68fe80217b552.pdf.txt", "+r") as file:
             text = " ".join(file.readlines()).replace("\n", " ").replace("\r", " ")
             chem_struct.GetChemicalStructuresFromText(text)
-
-
-        # chem_struct.test("пенициллинацилаза.mol", False, "sds.std.mol")
+            chem_struct.standartize_mol_file("name.mol")
 if __name__ == "__main__":
     main()
 ```
