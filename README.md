@@ -132,7 +132,7 @@ SaveChemicalStructureToMol(chemical_structure_dict, path_to_file)
 
 
 ```python
-StandardizeMolFile(path_to_file)
+standartize_mol_file(path_to_file.mol)
 ```
 
 
