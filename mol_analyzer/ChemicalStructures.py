@@ -11,12 +11,19 @@ import os
 from .vectorization import vectorize_text
 from tqdm import tqdm
 import nltk
+from enum import Enum
 from .GNNT.task import *
 from .extraction import Extractor
 import pandas as pd
 from transformers import BertTokenizer, BertModel
 from torch import cuda
 import time
+
+class StandardizerTaskType(Enum):
+    MolFile,
+    SmilesText,
+    InchiCode
+
 class ChemicalStructures():
     """
     Основной класс для анализа обработки химических и биохимических текстов.
@@ -239,16 +246,29 @@ class ChemicalStructures():
                 f"SELECT * FROM public.compound_titles ORDER BY vector <-> '{vector}' LIMIT {limit_row}")
             return cursor.fetchall()
         
-    def standartize_mol_file(self, data: str):
+    def standartize_mol_file(self, data: str, type:StandardizerTaskType=StandardizerTaskType.MolFile,raw_mol=None,  smiles_text:str=None, inchi_code:str=None):
         """
-        Функция стандартизации мол файла.
-        Аргументы:
-        data (str): Путь к Молекулярному файлу в формате mol.
-        Возвращает:
-        str: Стандартизированный молекулярный файл в формате SMILES.
+        Функция принимает на вход данные в формате строки (data) и тип стандартизации (type).
+        Если тип стандартизации равен StandardizerTaskType.MolFile, то функция вызывает метод __StandardizeMolFile__ с параметром data.
+        Если тип стандартизации равен StandardizerTaskType.SmilesText, то функция проверяет наличие параметра smiles_text. Если он отсутствует, то вызывается исключение ValueError с сообщением об ошибке. Затем функция вызывает метод __StandardizeSmilesText__ с параметром smiles_text.
+        Если тип стандартизации равен StandardizerTaskType.InchiCode, то функция проверяет наличие параметра inchi_code. Если он отсутствует, то вызывается исключение ValueError с сообщением об ошибке. Затем функция вызывает метод __StandardizeInchiCode__ с параметром inchi_code.
+
+        :param data: данные в формате строки
+        :param type: тип стандартизации
+        :param smiles_text: текст в формате SMILES
+        :param inchi_code: код InChI
+        :return: None
         """
-        self.__StandardizeMolFile__(data)
-    
+        if(type==StandardizerTaskType.MolFile):
+            return self.__StandardizeMolFile__(data, raw_mol)
+        if(type == StandardizerTaskType.SmilesText):
+            if not smiles_text: raise ValueError(f"The smiles_text argument is missing.You cannot use type {type} without smiles text.")
+            return self.__StandardizeSmilesText__(smiles_text)
+        if(type == StandardizerTaskType.InchiCode):
+            if not inchi_code: raise ValueError(f"The inchi_code argument is missing. You cannot use type {type} without inchi.")
+            return self.__StandardizeInchiCode__(inchi_code)
+   
+
     def get_inchi_by_pubchem_index(self, index):
         self.curs.execute(f"SELECT inchi FROM public.pubchem_database WHERE pubchem_index = '{index}';")
         return self.curs.fetchone()
@@ -347,7 +367,31 @@ class ChemicalStructures():
                 f.close()
         except Exception as e:
             # в случае сбоя будет выведено сообщение в STDOUT
-            print("Unexpected error:", e)
+            print("Unexpected error:", e)\
+                
+    def __SmilesToMolStandartize__ (self, SMILES, file_path=None):
+        mol = Chem.MolFromSmiles(SMILES)
+        stdrz = StandardizerTask()
+        s_mol = stdrz.predict_mol(mol, False)
+        if file_path:
+            with open(file_path, 'w') as f:
+                b_mol = Chem.MolToMolBlock(s_mol)
+                f.write(b_mol)
+                f.close()
+        else:
+            return Chem.MolToMolBlock(s_mol)
+
+    def __InchiToMolStandartize (self, inchi, file_path=None):
+        mol = Chem.InchiToMol(inchi)
+        stdrz = StandardizerTask()
+        s_mol = stdrz.predict_mol(mol, False)
+        if file_path:
+            with open(file_path, 'w') as f:
+                b_mol = Chem.MolToMolBlock(s_mol)
+                f.write(b_mol)
+                f.close()
+        else:
+            return Chem.MolToMolBlock(s_mol)
 
 
     def InchiToStantartisedMolFile(self, path_to_file, mol):
