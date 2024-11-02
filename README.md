@@ -210,7 +210,7 @@ GetChemicalStructuresInchi(chemical_structures_list)
 ```python
 SaveChemicalStructureToMol(chemical_structure_dict, path_to_file)
 ```
-Стандартизирует mol файл.
+Стандартизирует в mol файл. Эта функция выполняет стандартизацию химических структур в MOL формат, при этом на вход ей подаются молекулы в форматах MOL, IchI, SMILES. Примеры использования ниже.
 
 
 ```python
