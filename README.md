@@ -222,7 +222,7 @@ standartize_mol_file(path_to_file.mol)
 
 
 # Пример использования:
-Извлечение названий хисических структур,получение их inchi и их стандартизациия.
+Извлечение названий химических структур,получение их inchi и их стандартизациия.
 
 ```python
 from mol_analyzer  import ChemicalStructures as bt
