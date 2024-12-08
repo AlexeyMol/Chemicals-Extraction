@@ -20,9 +20,9 @@ from torch import cuda
 import time
 
 class StandardizerTaskType(Enum):
-    MolFile,
-    SmilesText,
-    InchiCode
+    MolFile=0,
+    SmilesText=1,
+    InchiCode=2
 
 class ChemicalStructures():
     """

@@ -1,24 +1,67 @@
 import json
+import sys
+import os
 from os import PathLike
 from pathlib import Path
-from typing import Union, Tuple, Dict, Optional
-
+from typing import Union, Tuple, Dict, Optional, List
+import pickle as pkl
 import torch
 from rdkit import Chem, RDLogger
 from rdkit.Chem.rdchem import Mol
+from torch import nn
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import CyclicLR
+from torch.utils.data import random_split
 from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader
 from tqdm import tqdm as default_tqdm
-import os
-from .data_analysis import normalize_sample, denorm_result, convert_to_one_hot, from_one_hot, OH_EXCLUDE_NODE_FEATS
+
+
+from .data_analysis import normalize_sample, denorm_result, convert_to_one_hot, from_one_hot, \
+    level_dataset, normalize_dataset, feats_identifier
+    
 from .data_ondisk import ChemDataset
-from .data_preprocess import Sample, mol_to_graph, graph_to_mol
+from .data_preprocess import Sample, mol_to_graph, graph_to_mol, load_dataset
 from .modeling import GNNTransformModel
 
 
 class StandardizerTask:
-    def __init__(self, name='GNNT', load_ckp="4.8mil", model_home='./GNNT/ckp',
+    @classmethod
+    def for_train(cls,
+                  name='GNNT', dataset_path=None, node_feats_idx=None, edge_feats_idx=None,
+                  **kwargs):
+        """
+        Инициализация для обучения модели
+        """
+        if dataset_path is None or not Path(dataset_path).is_dir():
+            raise ValueError('Invalid dataset path')
+        identifier = feats_identifier(node_feats_idx, edge_feats_idx)
+
+        if 'num_samples' in kwargs:
+            num_samples = kwargs['num_samples']
+            if num_samples is not None:
+                if num_samples >= 1000000:
+                    ns_str = f'{num_samples // 1000000}kk'
+                elif num_samples >= 1000:
+                    ns_str = f'{num_samples // 1000}k'
+                elif num_samples >= 100:
+                    ns_str = f'{num_samples / 1000 :.1f}k'
+                else:
+                    ns_str = 'tiny'
+                identifier = f'{identifier}-{ns_str}'
+
+
+        return cls(name=name, dataset_path=dataset_path,
+                   node_feats_idx=node_feats_idx, edge_feats_idx=edge_feats_idx,
+                   cache_suffix=identifier, load_ckp=identifier,
+                   **kwargs)
+
+    def __init__(self, name='GNNT', load_ckp="0dc3-03-1kk", model_home='./GNNT/ckp',
                  model_params=None, model_kwargs=None, one_hot=True, ondisk_dataset=False,
-                 tqdm=None):
+                 filter_output_only=True,
+                 tqdm=None,
+                 dataset_path=None, node_feats_idx=None, edge_feats_idx=None,
+                 cache_suffix=None, num_samples=None):
         """
         Инициализация класса StandardizerTask.
 
@@ -34,7 +77,6 @@ class StandardizerTask:
         this_dir, this_filename = os.path.split(__file__)
 
         DATA_PATH = os.path.join(this_dir, "ckp")
-        print(DATA_PATH)
         self.model_home = Path(DATA_PATH)
         self.model_home.mkdir(parents=True, exist_ok=True)
 
@@ -54,14 +96,26 @@ class StandardizerTask:
         self.dataset_original: Optional[Dict[int, Sample]] = None
         self.dataset: Optional[Union[Dict[int, Sample], ChemDataset]] = None
         self.stats: Optional[dict] = None
+        if dataset_path is not None:
+            self.load_dataset(dataset_path, True, cache_suffix,
+                              other_only=False, num_samples=num_samples,
+                              node_feats_idx=node_feats_idx, edge_feats_idx=edge_feats_idx,
+                              filter_output_only=filter_output_only)
 
         def _init_model():
             if model_params is None:
                 if self.stats is not None and all(
                         x in self.stats for x in ('node_embedding_size', 'edge_embedding_size')
                 ):
-                    params = (self.stats['node_embedding_size'], self.stats['edge_embedding_size'])
+                    if all(x in self.stats for x in ('node_embedding_output_size', 'edge_embedding_output_size')):
+                        params = (
+                            self.stats['node_embedding_size'], self.stats['edge_embedding_size'],
+                            self.stats['node_embedding_output_size'], self.stats['edge_embedding_output_size'],
+                        )
+                    else:
+                        params = (self.stats['node_embedding_size'], self.stats['edge_embedding_size'])
                 else:
+                    print('WARN: Using default hardcoded embedding sizes', file=sys.stderr)
                     params = (446, 14)  # (214, 13)
             else:
                 params = model_params
@@ -100,13 +154,23 @@ class StandardizerTask:
         else:
             in_mol = Chem.MolFromMolFile(mol, True, True, False)
 
-        data = mol_to_graph(in_mol)
-        pred_nodes, pred_edges = self.predict(data)
+        node_feats_idx = self.stats.get('node_feats_idx', None)
+        edge_feats_idx = self.stats.get('edge_feats_idx', None)
+        filter_output_only = self.stats.get('filter_output_only', False)
 
-        for attr in OH_EXCLUDE_NODE_FEATS:
-            pred_nodes[:, attr] = data.x[:, attr]
+        if node_feats_idx is None or edge_feats_idx is None:
+            print('WARN: using full node and/or edge features')
 
-        out_mol = graph_to_mol(pred_nodes, data.edge_index, pred_edges)
+        data = mol_to_graph(in_mol,
+                            node_feats_idx=node_feats_idx if not filter_output_only else None,
+                            edge_feats_idx=edge_feats_idx if not filter_output_only else None)
+        pred_nodes, pred_edges = self.predict(data,
+                                              node_feats_idx=node_feats_idx if filter_output_only else None,
+                                              edge_feats_idx=edge_feats_idx if filter_output_only else None)
+
+        out_mol = graph_to_mol(pred_nodes, data.edge_index, pred_edges,
+                               node_feats_idx if filter_output_only else None,
+                               edge_feats_idx if filter_output_only else None)
 
         if save:
             if not isinstance(save, (PathLike, str)) and isinstance(mol, (PathLike, str)):
@@ -118,7 +182,7 @@ class StandardizerTask:
         return out_mol
 
     def predict(self, sample: Union[Sample, Data, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]],
-                norm_input=True, round_output=False):
+                norm_input=True, round_output=False, node_feats_idx=None, edge_feats_idx=None):
         """
         Предсказание структуры молекулы на основе one-hot кодирования.
 
@@ -156,7 +220,9 @@ class StandardizerTask:
 
         if self.one_hot:
             result = tuple(torch.sigmoid(x) for x in result)
-            result = from_one_hot(*result, stats=self.stats)
+            result = from_one_hot(*result, stats=self.stats,
+                                  node_feats_idx=node_feats_idx,
+                                  edge_feats_idx=edge_feats_idx)
         else:
             result = denorm_result(*result, statistics=self.stats)
 
@@ -190,6 +256,74 @@ class StandardizerTask:
             return node_diff, edge_diff
 
         return torch.abs(node_diff) < .5, torch.abs(edge_diff) < .5
+
+    def load_dataset(self, dataset_path=None, force=False, cache_suffix=None, rebuild_cache=False, other_only=False,
+                     original=False, num_samples=None, node_feats_idx=None, edge_feats_idx=None,
+                     filter_output_only=True):
+        if self.ondisk_dataset and self.dataset is None:
+            self.dataset = ChemDataset(dataset_path)
+            self.stats = self.dataset.get_stats()
+            return
+        elif self.ondisk_dataset:
+            return
+
+        if self.dataset is not None and not force and (not original or self.dataset_original is not None):
+            return
+        elif not force and dataset_path is None:
+            raise ValueError('Dataset not loaded, nor dataset_path provided')
+        if dataset_path is None:
+            raise ValueError('dataset_path not provided')
+
+        cache_name = f'leveled_{cache_suffix}.pkl' if cache_suffix else 'leveled.pkl'
+        if other_only:
+            cache_name = 'oo_' + cache_name
+        cache_file = Path(dataset_path) / 'cache' / cache_name
+
+        oh_cache_file = Path(dataset_path) / 'cache' / f'oh_{cache_name}'
+
+        if rebuild_cache or not cache_file.is_file():
+            print('Loading dataset...', file=sys.stderr)
+            dataset, _ = load_dataset(dataset_path,
+                                      cache_suffix=cache_suffix, num_samples=num_samples,
+                                      node_feats_idx=node_feats_idx if not filter_output_only else None,
+                                      edge_feats_idx=edge_feats_idx if not filter_output_only else None)
+            print('Leveling dataset...', file=sys.stderr)
+            self.dataset_original = level_dataset(dataset, 0.6, other_only=other_only)
+            print('Writing to cache file...', file=sys.stderr)
+            with open(cache_file, 'wb') as f:
+                pkl.dump({idx: (d.input, d.output) for idx, d in self.dataset_original.items()}, f)
+        elif original or not self.one_hot or self.one_hot and not oh_cache_file.is_file():
+            print('Loading cached dataset...', file=sys.stderr)
+            with open(cache_file, 'rb') as f:
+                data = pkl.load(f)
+            self.dataset_original = {idx: Sample(idx=idx, input=i, output=o) for idx, (i, o) in data.items()}
+
+        if self.one_hot:
+            if rebuild_cache or not oh_cache_file.is_file():
+                print('Calculating one-hot...', file=sys.stderr)
+                self.dataset, self.stats = convert_to_one_hot(
+                    self.dataset_original,
+                    node_feats_idx=node_feats_idx if filter_output_only else None,
+                    edge_feats_idx=edge_feats_idx if filter_output_only else None
+                )
+                data = {idx: (d.input, d.output) for idx, d in self.dataset.items()}
+                self.stats['node_feats_idx'] = node_feats_idx
+                self.stats['edge_feats_idx'] = edge_feats_idx
+                self.stats['filter_output_only'] = filter_output_only
+                with open(oh_cache_file, 'wb') as f:
+                    pkl.dump((data, self.stats), f)
+                if not original:
+                    del self.dataset_original
+                    self.dataset_original = None
+            else:
+                print('Loading cached one-hot...', file=sys.stderr)
+                with open(oh_cache_file, 'rb') as f:
+                    data, self.stats = pkl.load(f)
+                self.dataset = {idx: Sample(idx=idx, input=i, output=o) for idx, (i, o) in data.items()}
+        else:
+            print('Normalizing dataset...', file=sys.stderr)
+            self.dataset, self.stats = normalize_dataset(self.dataset_original)
+        print('Dataset loaded.', file=sys.stderr)
 
     @staticmethod
     def to_json_obj(d):

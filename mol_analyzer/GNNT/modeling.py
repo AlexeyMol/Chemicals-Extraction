@@ -22,10 +22,6 @@ class CustomTransformer(nn.Module):
         self.pos_param = nn.Parameter(torch.zeros(1, self.seq_len, feat_dim))
 
     def forward(self, *x):
-        # x1: (Be (!), H) | x1: (Be, H)
-        # x2: (Be, H)     | x2: (Be, H)
-        # x3 : --         | x3: (Be, H)
-
         first_seq = [x.unsqueeze(1) for x in x[:self.first_seq]]  # (Be, 1, H)
         second_seq = [x.unsqueeze(1) for x in x[self.first_seq:]]  # (Be, 1, H)
 
@@ -40,7 +36,9 @@ class CustomTransformer(nn.Module):
 
 
 class GNNTransformModel(MessagePassing):
-    def __init__(self, num_node_features, num_edge_features, dropout_rate=.1, hid_dim=128):
+    def __init__(self, num_node_features, num_edge_features,
+                 output_node_features=None, output_edge_features=None,
+                 dropout_rate=.1, hid_dim=128):
         super(GNNTransformModel, self).__init__(aggr='add')
 
         self.node_encoder = nn.Sequential(
@@ -54,8 +52,8 @@ class GNNTransformModel(MessagePassing):
             nn.LayerNorm(hid_dim),
         )
 
-        self.node_decoder = nn.Linear(hid_dim, num_node_features)
-        self.edge_decoder = nn.Linear(hid_dim, num_edge_features)
+        self.node_decoder = nn.Linear(hid_dim, output_node_features or num_node_features)
+        self.edge_decoder = nn.Linear(hid_dim, output_edge_features or num_edge_features)
 
         self.node_message_passing = CustomTransformer(
             hid_dim, 4, 4, hid_dim, dropout_rate,
@@ -66,33 +64,8 @@ class GNNTransformModel(MessagePassing):
             first_seq=2
         )
 
-        # self.node_message_passing = nn.Sequential(
-        #     nn.Linear(hid_dim * 2, hid_dim),
-        #     nn.LeakyReLU(),
-        #     nn.Dropout(p=dropout_rate),
-        #     nn.Linear(hid_dim, hid_dim),
-        #     nn.LeakyReLU(),
-        #     nn.Dropout(p=dropout_rate),
-        #     nn.Linear(hid_dim, hid_dim),
-        #     nn.LeakyReLU(),
-        # )
-
-        # self.edge_message_passing = nn.Sequential(
-        #     nn.Linear(hid_dim * 3, hid_dim),
-        #     nn.LeakyReLU(),
-        #     nn.Dropout(p=dropout_rate),
-        #     nn.Linear(hid_dim, hid_dim),
-        #     nn.LeakyReLU(),
-        #     nn.Dropout(p=dropout_rate),
-        #     nn.Linear(hid_dim, hid_dim),
-        #     nn.LeakyReLU(),
-        # )
 
     def forward(self, x, edge_index, edge_attr):
-        # x: (Bn, N) Bn ~ 4978
-        # edge_attr: (Be, E) Be ~ 10708
-        # edge_index: (2, Be)
-
         x = self.node_encoder(x)  # (Bn, H)
         edge_attr = self.edge_encoder(edge_attr) if len(edge_attr) > 0 else edge_attr  # (Be, H)
 
@@ -107,21 +80,10 @@ class GNNTransformModel(MessagePassing):
         return out_node_features, out_edge_features
 
     def message(self, x_j, edge_attr):
-        # x_i: --
-        # x_j: (Be (!), H)
-        # edge_attr: (Be, H)
-
         return self.node_message_passing(x_j, edge_attr)
 
     def edge_update(self, x_i, x_j, edge_attr):
-        # x_i: (Be, H)
-        # x_j: (Be, H)
-        # edge_attr: (Be, H)
-
         return self.edge_message_passing(x_i, x_j, edge_attr)
 
     def update(self, aggr_out):
-        # Only for nodes
-        # aggr_out: (Bn, H)
-
         return aggr_out

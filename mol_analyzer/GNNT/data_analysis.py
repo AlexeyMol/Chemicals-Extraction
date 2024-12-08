@@ -23,6 +23,12 @@ def _l(gen):
     return len(list(gen))
 
 
+def feats_identifier(node_feats_idx=None, edge_feats_idx=None):
+    if edge_feats_idx is None and node_feats_idx is None:
+        return 'full'
+    return f'{sum(2 ** x for x in node_feats_idx) :04x}-{sum(2 ** x for x in edge_feats_idx) :02x}'
+
+
 def filter_dataset(dataset, keep_edgeless=True, keep_differ_edges=False):
     no_edges_idx = {s.idx for s in no_edges(dataset.values())} if not keep_edgeless else set()
     node_count_diffs_idx = {s.idx for s in node_count_diffs(dataset.values())}
@@ -119,7 +125,8 @@ def analyze_dataset(dataset: Dict[int, Sample], use_input=True, use_output=True)
     }, all_node_features, all_edge_features
 
 
-def convert_to_one_hot(data: Union[Dict[int, Sample], Data], stats: Optional[dict] = None, inplace=False):
+def convert_to_one_hot(data: Union[Dict[int, Sample], Data], stats: Optional[dict] = None,
+                       node_feats_idx=None, edge_feats_idx=None, inplace=False):
     is_one_sample = isinstance(data, Data)
     if not inplace:
         if is_one_sample:
@@ -137,41 +144,63 @@ def convert_to_one_hot(data: Union[Dict[int, Sample], Data], stats: Optional[dic
     edge_features_max = stats['edge_features_max'].to(torch.int64)
 
     node_feature_length = int(sum(max_val - min_val + 1 for idx, (min_val, max_val)
-                                  in enumerate(zip(node_features_min.tolist(), node_features_max.tolist()))
-                                  if idx not in OH_EXCLUDE_NODE_FEATS))
+                                  in enumerate(zip(node_features_min.tolist(), node_features_max.tolist()))))
     edge_feature_length = int(sum(max_val - min_val + 1 for idx, (min_val, max_val)
-                                  in enumerate(zip(edge_features_min.tolist(), edge_features_max.tolist()))
-                                  if idx not in OH_EXCLUDE_EDGE_FEATS))
+                                  in enumerate(zip(edge_features_min.tolist(), edge_features_max.tolist()))))
+
+    if node_feats_idx is None or edge_feats_idx is None:
+        output_node_feature_length = node_feature_length
+        output_edge_feature_length = edge_feature_length
+    else:
+        output_node_feature_length = int(
+            sum(
+                max_val - min_val + 1 for idx, (min_val, max_val)
+                in enumerate(zip(node_features_min.tolist(), node_features_max.tolist()))
+                if idx in node_feats_idx
+            )
+        )
+        output_edge_feature_length = int(
+            sum(
+                max_val - min_val + 1 for idx, (min_val, max_val)
+                in enumerate(zip(edge_features_min.tolist(), edge_features_max.tolist()))
+                if idx in edge_feats_idx
+            )
+        )
 
     if is_one_sample:
         _one_hot_encode_data(data, node_features_min, node_features_max, edge_features_min, edge_features_max,
-                             node_feature_length, edge_feature_length)
+                             output_node_feature_length, output_edge_feature_length, node_feats_idx, edge_feats_idx)
 
     else:
         for pair_sample in data.values():
-            for data_sample in [pair_sample.input, pair_sample.output]:
+            for idx, data_sample in enumerate((pair_sample.input, pair_sample.output)):
                 if data_sample is None:
                     continue
 
                 _one_hot_encode_data(data_sample, node_features_min, node_features_max,
                                      edge_features_min, edge_features_max,
-                                     node_feature_length, edge_feature_length)
+                                     node_feature_length if idx < 1 else output_node_feature_length,
+                                     edge_feature_length if idx < 1 else output_edge_feature_length,
+                                     None if idx < 1 else edge_feats_idx,  # Filtering for output only
+                                     None if idx < 1 else node_feats_idx)
 
         stats['node_embedding_size'] = node_feature_length
         stats['edge_embedding_size'] = edge_feature_length
+        stats['node_embedding_output_size'] = output_node_feature_length
+        stats['edge_embedding_output_size'] = output_edge_feature_length
 
     return data, stats
 
 
-def from_one_hot(node_features, edge_features, stats: dict):
+def from_one_hot(node_features, edge_features, stats: dict, node_feats_idx=None, edge_feats_idx=None):
     node_feature_min = [x for idx, x in enumerate(stats['node_features_min'].tolist())
-                        if idx not in OH_EXCLUDE_NODE_FEATS]
+                        if node_feats_idx is None or idx in node_feats_idx]
     node_feature_max = [x for idx, x in enumerate(stats['node_features_max'].tolist())
-                        if idx not in OH_EXCLUDE_NODE_FEATS]
+                        if node_feats_idx is None or idx in node_feats_idx]
     edge_feature_min = [x for idx, x in enumerate(stats['edge_features_min'].tolist())
-                        if idx not in OH_EXCLUDE_EDGE_FEATS]
+                        if edge_feats_idx is None or idx in edge_feats_idx]
     edge_feature_max = [x for idx, x in enumerate(stats['edge_features_max'].tolist())
-                        if idx not in OH_EXCLUDE_EDGE_FEATS]
+                        if edge_feats_idx is None or idx in edge_feats_idx]
 
     def _get_feat_value(feats, idx, x_min, x_max, feats_min, feats_max):
         if feats.dim() != 2 or feats.size(0) == 0:
@@ -181,31 +210,26 @@ def from_one_hot(node_features, edge_features, stats: dict):
         feats_slice = feats[:, start:start + count]
         return torch.argmax(feats_slice, dim=1).to(torch.float) + x_min
 
-    def _return_excluded(feats: list, exclude):
-        for e in exclude:
-            feats.insert(e, torch.tensor([-1.0] * feats[0].size(0), dtype=torch.float))
-        return feats
-
     return tuple(
-        torch.stack(_return_excluded([
+        torch.stack([
             _get_feat_value(feats.to(torch.float), idx, x_min, x_max, feats_min, feats_max)
             for idx, (x_min, x_max) in enumerate(zip(feats_min, feats_max))
-        ], exclude)).t().contiguous()
-        for feats, feats_min, feats_max, exclude in (
-            (node_features, node_feature_min, node_feature_max, OH_EXCLUDE_NODE_FEATS),
-            (edge_features, edge_feature_min, edge_feature_max, OH_EXCLUDE_EDGE_FEATS)
+        ]).t().contiguous()
+        for feats, feats_min, feats_max in (
+            (node_features, node_feature_min, node_feature_max),
+            (edge_features, edge_feature_min, edge_feature_max)
         )
     )
 
 
 def _one_hot_encode_data(data, node_features_min, node_features_max, edge_features_min, edge_features_max,
-                         node_feature_length, edge_feature_length):
-    def _encode(num_entities, feats, feature_length, num_features, features_min, features_max, exclude):
+                         node_feature_length, edge_feature_length, node_feats_idx, edge_feats_idx):
+    def _encode(num_entities, feats, feature_length, num_features, features_min, features_max, filter_idx):
         one_hot = torch.zeros((num_entities, feature_length), dtype=torch.bool)
 
         current_idx = 0
         for i in range(num_features):
-            if i in exclude:
+            if not filter_idx or i not in filter_idx:
                 continue
             min_val = features_min[i]
             max_val = features_max[i]
@@ -220,15 +244,13 @@ def _one_hot_encode_data(data, node_features_min, node_features_max, edge_featur
     num_nodes, num_node_features = data.x.shape
     data.x = _encode(num_nodes, data.x,
                      node_feature_length, num_node_features,
-                     node_features_min, node_features_max,
-                     OH_EXCLUDE_NODE_FEATS)
+                     node_features_min, node_features_max, node_feats_idx)
 
     if data.edge_attr.dim() == 2:
         num_edges, num_edge_features = data.edge_attr.shape
         data.edge_attr = _encode(num_edges, data.edge_attr,
                                  edge_feature_length, num_edge_features,
-                                 edge_features_min, edge_features_max,
-                                 OH_EXCLUDE_EDGE_FEATS)
+                                 edge_features_min, edge_features_max, edge_feats_idx)
 
 
 def normalize_dataset(dataset: Dict[int, Sample], inplace=False, output_features=False):
