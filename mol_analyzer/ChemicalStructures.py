@@ -304,7 +304,7 @@ class ChemicalStructures():
             return self.__StandardizeMolFile__(data, raw_mol)
         if(type == StandardizerTaskType.SmilesText):
             if not smiles_text: raise ValueError(f"The smiles_text argument is missing.You cannot use type {type} without smiles text.")
-            return self.__StandardizeSmilesText__(save_path, file_name, smiles_text)
+            return self.__StandardizeSmilesText__(smiles_text, save_path, file_name)
         if(type == StandardizerTaskType.InchiCode):
             if not inchi_code: raise ValueError(f"The inchi_code argument is missing. You cannot use type {type} without inchi.")
             return self.__StandardizeInchiCode__(inchi_code,save_path, file_name)
@@ -426,7 +426,8 @@ class ChemicalStructures():
             # в случае сбоя будет выведено сообщение в STDOUT
             print("Unexpected error:", e)
 
-    def __StandardizeSmilesText__(self, save_path, filename, smiles = None):
+
+    def __StandardizeSmilesText__(self, smiles, save_path=None, filename=None):
         """
         This function standardizes a mol file.
         :save_path: The path to the folder where the mol file should be saved.
@@ -442,6 +443,9 @@ class ChemicalStructures():
             smiles_raw = Chem.MolFromSmiles(smiles)
             stdrz = StandardizerTask()
             s_mol = stdrz.predict_mol(smiles_raw, False)
+            if not save_path or not filename:
+                return Chem.MolToMolBlock(s_mol)
+            
             with open(st_file_path, 'w') as f:
                 b_mol = Chem.MolToMolBlock(s_mol)
                 f.write(b_mol)
@@ -491,20 +495,10 @@ class ChemicalStructures():
                 f.close()
         except Exception as e:
             # в случае сбоя будет выведено сообщение в STDOUT
-            print("Unexpected error:", e)      
-    def __SmilesToMolStandartize__ (self, SMILES, file_path=None):
-        mol = Chem.MolFromSmiles(SMILES)
-        stdrz = StandardizerTask()
-        s_mol = stdrz.predict_mol(mol, False)
-        if file_path:
-            with open(file_path, 'w') as f:
-                b_mol = Chem.MolToMolBlock(s_mol)
-                f.write(b_mol)
-                f.close()
-        else:
-            return Chem.MolToMolBlock(s_mol)
+            print("Unexpected error:", e)
 
-    def __InchiToMolStandartize (self, inchi, file_path=None):
+
+    def __InchiToMolStandartize__ (self, inchi, file_path=None):
         mol = Chem.InchiToMol(inchi)
         stdrz = StandardizerTask()
         s_mol = stdrz.predict_mol(mol, False)

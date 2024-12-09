@@ -274,7 +274,8 @@ def main():
 
     with bt.ChemicalStructures("chem_db_vector", "postgres", "4847", "localhost", "5432") as chem_struct:
         smiles = 'Cc1ccccc1' # 
-        chem_struct.standartize_mol_file("name.mol", smiles_text =smiles, type=StandardizerTaskType.SmilesText)
+        chem_struct.standartize_mol_file(data = smiles, smiles_text=smiles, type=StandardizerTaskType.SmilesText, save_path="./", file_name="name.mol")
+
 if __name__ == "__main__":
     main()
 ```
