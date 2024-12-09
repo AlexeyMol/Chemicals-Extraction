@@ -18,7 +18,7 @@ import pandas as pd
 from transformers import BertTokenizer, BertModel
 from torch import cuda
 import time
-import .StandardizerTaskType
+from .StandardizerTaskType import StandardizerTaskType
 
 class ChemicalStructures():
     """
