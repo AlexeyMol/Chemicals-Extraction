@@ -264,7 +264,8 @@ if __name__ == "__main__":
 Стандартизация из SMILES и сохранение результатов в mol формате.
 ```python
 from mol_analyzer  import ChemicalStructures as bt
-from mol_analyzer  import StandardizerTaskType
+from mol_analyzer.StandardizerTaskType import StandardizerTaskType
+
 
 def main():
     # """
