@@ -255,9 +255,7 @@ def main():
     # Загрузка токенизатора и модели
 
     with bt.ChemicalStructures("chem_db_vector", "postgres", "4847", "localhost", "5432") as chem_struct:
-        with open("./niclosamide_noClNoNitro.mol", "+r") as file:
-            moldata = file.readlines();
-            chem_struct.standartize_mol_file("name.mol", raw_mol = moldata)
+        chem_struct.standartize_mol_file("./niclosamide_noClNoNitro.mol", raw_mol = moldata)
 if __name__ == "__main__":
     main()
 ```

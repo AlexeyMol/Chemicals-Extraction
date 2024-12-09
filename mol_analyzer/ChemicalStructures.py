@@ -18,11 +18,7 @@ import pandas as pd
 from transformers import BertTokenizer, BertModel
 from torch import cuda
 import time
-
-class StandardizerTaskType(Enum):
-    MolFile=0,
-    SmilesText=1,
-    InchiCode=2
+import .StandardizerTaskType
 
 class ChemicalStructures():
     """
