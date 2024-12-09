@@ -35,13 +35,17 @@ class ChemicalStructures():
     standartisation_model = None
     conn = None
     curs = None
-
-    def __init__(self, db_name, user, password, host, port):
+    empty_db = False
+    def __init__(self, db_name=None, user=None, password=None, host=None, port=None):
         nltk.download('punkt')
         nltk.download('stopwords')
         print("Создание объекта ChemicalStructures")
-        self._get_db_connection(db_name, user, password, host, port)
-        self._get_db_cursor()
+        if(db_name is None or user is None or password is None or host is None or port is None):
+            self.get_vector_row_by_cosineempty_db = True
+        if(not self.empty_db):
+            self._get_db_connection(db_name, user, password, host, port)
+            if not self.curs:
+                self._get_db_cursor()
         print("Загрузка моделей")
         self.tokenizer = BertTokenizer.from_pretrained('AlexeyMol/mBERT_chemical_ner')
         self.model = BertModel.from_pretrained('AlexeyMol/mBERT_chemical_ner')
@@ -49,12 +53,28 @@ class ChemicalStructures():
         self.device = 'cuda' if cuda.is_available() else 'cpu'
         # device = "cpu"
         self.model.to(self.device)
-
+    
+    def create_db_connection(self, db_name, user, password, host, port)->None:
+        """
+        Создание подключения к базе данных.
+        Args:
+            db_name (str): Имя базы данных.
+            user (str): Имя пользователя.
+            password (str): Пароль.
+            host (str): Хост.
+            port (str): Порт.
+        """
+        self._get_db_connection(db_name, user, password, host, port)
+        if not self.curs:
+            self._get_db_cursor()
+        self.empty_db = False
+        
     def __enter__(self):
         return self
     
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None,) -> None:
-        self._close_connection()
+        if(not self.empty_db):
+            self._close_connection()
 
     def _get_db_connection(self, db_name, user, password, host, port):
         try:
@@ -85,12 +105,16 @@ class ChemicalStructures():
         self.update(data)
 
     def update(self, values) -> None:
+
         """
         Обновление данных в базе данных.
 
         Args:
             values (list): Значения для обновления.
         """
+        if(not self.empty_db):
+            print("Database connection empty. First create it by create_db_connection method!")
+            return
         strsd = """UPDATE public.compound_titles as t SET title_rus = %s WHERE t.pubchem_index = %s"""
         psycopg2.extras.execute_batch(self.curs, strsd, values)
         self.conn.commit()
@@ -107,6 +131,9 @@ class ChemicalStructures():
         Returns:
             list: Векторизованные данные.
         """
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return
         data = []
         while True:
             rows = self.curs.execute(
@@ -128,6 +155,9 @@ class ChemicalStructures():
         Returns:
             Список названий химических структур. Если ничего не найдено, возвращает пустой список.
         """
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return        
         rows = self.curs.execute(
             f"SELECT title FROM public.compound_titles ORDER BY vector <=> '{vector}' LIMIT {limit}")
         if not rows:
@@ -143,6 +173,9 @@ class ChemicalStructures():
         Returns:
             Список названий химических структур. Если ничего не найдено, возвращает пустой список.
         """
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return        
         rows = self.curs.execute(
             f"SELECT title FROM public.compound_titles where pubchem_index = {pubchemindex} LIMIT {limit}")
         if not rows:
@@ -158,6 +191,9 @@ class ChemicalStructures():
         Returns:
             Список названий химических структур. Если ничего не найдено, возвращает пустой список.
         """
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return        
         rows = self.curs.execute(
             f"SELECT title FROM public.compound_titles where title = '{text}' LIMIT {limit}")
         if not rows:
@@ -220,10 +256,13 @@ class ChemicalStructures():
         except:
             print("Unexpected error:", sys.exc_info())
 
-    def get_vector_row_by_cosine(self, vector: str, limit_row: int = 5) -> list:
+    def get_vector_row_by_cosine(self, vector: str, limit_row: int = 5) -> Union[list,None]:
         '''
         Получение N ближайших записей по косинусному расстоянию векторов.
         '''
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return None
         self.curs.execute(
                 f"SELECT pubchem_index FROM public.compound_titles ORDER BY vector <=> '{vector}' LIMIT {limit_row}")
         return self.curs.fetchall()[0]
@@ -232,6 +271,12 @@ class ChemicalStructures():
         '''
         Получение N ближайших записей по расстоянию L1 для векторов.
         '''
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return None
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return None
         self.curs.execute(
             f"SELECT * FROM public.compound_titles ORDER BY vector <+> '{vector}' LIMIT {limit_row}")
         t = self.curs.fetchall()
@@ -241,39 +286,49 @@ class ChemicalStructures():
         '''
         Получение N ближайших записей по расстоянию L2 для векторов.
         '''
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return
         with self.conn.cursor() as cursor:
             cursor.execute(
                 f"SELECT * FROM public.compound_titles ORDER BY vector <-> '{vector}' LIMIT {limit_row}")
             return cursor.fetchall()
         
-    def standartize_mol_file(self, data: str, type:StandardizerTaskType=StandardizerTaskType.MolFile,raw_mol=None,  smiles_text:str=None, inchi_code:str=None):
+    def standartize_mol_file(self, data: str, type:StandardizerTaskType=StandardizerTaskType.MolFile,raw_mol=None,  smiles_text:str=None, inchi_code:str=None, file_name:str=None, save_path:str=None) -> None:
         """
         Функция принимает на вход данные в формате строки (data) и тип стандартизации (type).
         Если тип стандартизации равен StandardizerTaskType.MolFile, то функция вызывает метод __StandardizeMolFile__ с параметром data.
         Если тип стандартизации равен StandardizerTaskType.SmilesText, то функция проверяет наличие параметра smiles_text. Если он отсутствует, то вызывается исключение ValueError с сообщением об ошибке. Затем функция вызывает метод __StandardizeSmilesText__ с параметром smiles_text.
         Если тип стандартизации равен StandardizerTaskType.InchiCode, то функция проверяет наличие параметра inchi_code. Если он отсутствует, то вызывается исключение ValueError с сообщением об ошибке. Затем функция вызывает метод __StandardizeInchiCode__ с параметром inchi_code.
-
         :param data: данные в формате строки
         :param type: тип стандартизации
         :param smiles_text: текст в формате SMILES
         :param inchi_code: код InChI
+        :param file_name: имя файла
+        :param save_path: путь к папке для сохранения
         :return: None
         """
         if(type==StandardizerTaskType.MolFile):
             return self.__StandardizeMolFile__(data, raw_mol)
         if(type == StandardizerTaskType.SmilesText):
             if not smiles_text: raise ValueError(f"The smiles_text argument is missing.You cannot use type {type} without smiles text.")
-            return self.__StandardizeSmilesText__(smiles_text)
+            return self.__StandardizeSmilesText__(save_path, file_name, smiles_text)
         if(type == StandardizerTaskType.InchiCode):
             if not inchi_code: raise ValueError(f"The inchi_code argument is missing. You cannot use type {type} without inchi.")
-            return self.__StandardizeInchiCode__(inchi_code)
+            return self.__StandardizeInchiCode__(inchi_code,save_path, file_name)
    
 
     def get_inchi_by_pubchem_index(self, index):
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return None
         self.curs.execute(f"SELECT inchi FROM public.pubchem_database WHERE pubchem_index = '{index}';")
         return self.curs.fetchone()
     
     def get_inchi_list_by_pubchem_indexes(self, indexes):
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return
         self.curs.execute(f"SELECT inchi FROM public.pubchem_database WHERE pubchem_index in '{indexes}';")
         return self.curs.fetchall()
 
@@ -295,6 +350,7 @@ class ChemicalStructures():
         :param file_prefix: The prefix to be added to the file names.
         :return: A list of the results of the SaveSingleChemStructerToMolWithoutStandartization function for each chemical structure.
         """
+
         try:
             result = list(map(lambda i: self.SaveSingleChemStructerToMolWithoutStandartization(
                 chemical_structures_list[i], path_to_folder + "/" + file_prefix + "_" + str(i) + ".mol"), range(0, len(chemical_structures_list))))
@@ -303,7 +359,37 @@ class ChemicalStructures():
             # в случае сбоя будет выведено сообщение в STDOUT
             print("Unexpected error:", e)
 
+    def SaveSingleChemStructerToMolWithoutStandartization(self, chemical_structure_dict, path_to_folder, file_prefix):
+        """
+        This function saves a single chemical structure to a mol file without standardizing it.
+        :param self: The instance of the class.
+        :param chemical_structure_dict: A dictionary containing the chemical structure information.
+        :param path_to_folder: The path to the folder where the mol file should be saved.
+        :param file_prefix: The prefix to be added to the file name.
+        :return: The result of the SaveMolFile function.
+        """
+        try:
+            return self.__save_Mol_File__(chemical_structure_dict, path_to_folder, file_prefix)
+        except Exception as e:
+            print("Unexpected error:", e)
+            return None
 
+    def __save_Mol_File__(self, chemical_structure_dict, path_to_folder, file_prefix):
+        """
+        This function saves a mol file.
+        :param self: The instance of the class.
+        :param chemical_structure_dict: A dictionary containing the chemical structure information.
+        :param path_to_folder: The path to the folder where the mol file should be saved.
+        :param file_prefix: The prefix to be added to the file name.
+        :return: The result of the SaveMolFile function.
+        """
+        try:
+            with open(path_to_folder + "/" + file_prefix + ".mol", "w") as f:
+                f.write(Chem.MolToMolBlock(chemical_structure_dict['mol']))
+            return True
+        except Exception as e:
+            print("Unexpected error:", e)
+            
     def GetChemicalStructureInchi(self, chemical_structure_dict):
         """
         This function gets the Inchi code for a chemical structure.
@@ -312,6 +398,9 @@ class ChemicalStructures():
         :param chemical_structure_dict: A dictionary containing the chemical structure information.
         :return: The Inchi code for the chemical structure.
         """
+        if(not self.empty_db):
+            print("Database connection empty. First create it by Create_DB method!")
+            return None
         try:
             with self.conn.cursor() as curs:
 
@@ -345,6 +434,49 @@ class ChemicalStructures():
             # в случае сбоя будет выведено сообщение в STDOUT
             print("Unexpected error:", e)
 
+    def __StandardizeSmilesText__(self, save_path, filename, smiles = None):
+        """
+        This function standardizes a mol file.
+        :save_path: The path to the folder where the mol file should be saved.
+        :param filename: The name of the file to be saved.
+        :param self: The instance of the class.
+        :param smiles: The smiles to be standardized.If not specified, the smiles will be taken from the file.
+        """
+        try:
+            st_file_path = save_path+"/" +filename+ "_standardized.mol"
+            if not smiles:
+                print("Smiles was not specified")
+                return; 
+            smiles_raw = Chem.MolFromSmiles(smiles)
+            stdrz = StandardizerTask()
+            s_mol = stdrz.predict_mol(smiles_raw, False)
+            with open(st_file_path, 'w') as f:
+                b_mol = Chem.MolToMolBlock(s_mol)
+                f.write(b_mol)
+                f.close()
+        except Exception as e:
+            # в случае сбоя будет выведено сообщение в STDOUT
+            print("Unexpected error:", e)
+
+    def __StandardizeInchiCode__(self, inchi, file_path, filename):
+        """
+        This function standardizes an Inchi code.
+        :param self: The instance of the class.
+        :param inchi: The Inchi code to be standardized.
+        :param file_path: The path to the file where the standardized Inchi code should be saved.
+        :param filename: The name of the file to be saved.
+        """
+        try:
+            mol = Chem.MolFromInchi(inchi)
+            stdrz = StandardizerTask()
+            s_mol = stdrz.predict_mol(mol, False)
+            with open(file_path, 'w') as f:
+                b_mol = Chem.MolToMolBlock(s_mol)
+                f.write(b_mol)
+                f.close()
+        except Exception as e:
+            print("Unexpected error:", e)
+        
     def __StandardizeMolFile__(self, path_to_file, mol = None):
         """
         This function standardizes a mol file.
@@ -367,8 +499,7 @@ class ChemicalStructures():
                 f.close()
         except Exception as e:
             # в случае сбоя будет выведено сообщение в STDOUT
-            print("Unexpected error:", e)\
-                
+            print("Unexpected error:", e)      
     def __SmilesToMolStandartize__ (self, SMILES, file_path=None):
         mol = Chem.MolFromSmiles(SMILES)
         stdrz = StandardizerTask()
@@ -397,7 +528,7 @@ class ChemicalStructures():
     def InchiToStantartisedMolFile(self, path_to_file, mol):
         try:
             # тут будет часть кода для стандартизации
-            s_mol = self.__StandardizeMolFile__(path_to_file, mol)
+            s_mol = self.__InchiToMolStandartize(path_to_file, mol)
             with open(path_to_file, 'w') as f:
                 b_mol = Chem.MolToMolBlock(s_mol)
                 f.write(b_mol)
