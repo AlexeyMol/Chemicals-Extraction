@@ -41,7 +41,7 @@ class ChemicalStructures():
         nltk.download('stopwords')
         print("Создание объекта ChemicalStructures")
         if(db_name is None or user is None or password is None or host is None or port is None):
-            self.get_vector_row_by_cosineempty_db = True
+            self.empty_db = True
         if(not self.empty_db):
             self._get_db_connection(db_name, user, password, host, port)
             if not self.curs:
