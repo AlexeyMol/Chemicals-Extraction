@@ -112,7 +112,7 @@ class ChemicalStructures():
         Args:
             values (list): Значения для обновления.
         """
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by create_db_connection method!")
             return
         strsd = """UPDATE public.compound_titles as t SET title_rus = %s WHERE t.pubchem_index = %s"""
@@ -131,7 +131,7 @@ class ChemicalStructures():
         Returns:
             list: Векторизованные данные.
         """
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return
         data = []
@@ -155,7 +155,7 @@ class ChemicalStructures():
         Returns:
             Список названий химических структур. Если ничего не найдено, возвращает пустой список.
         """
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return        
         rows = self.curs.execute(
@@ -173,7 +173,7 @@ class ChemicalStructures():
         Returns:
             Список названий химических структур. Если ничего не найдено, возвращает пустой список.
         """
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return        
         rows = self.curs.execute(
@@ -191,7 +191,7 @@ class ChemicalStructures():
         Returns:
             Список названий химических структур. Если ничего не найдено, возвращает пустой список.
         """
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return        
         rows = self.curs.execute(
@@ -260,7 +260,7 @@ class ChemicalStructures():
         '''
         Получение N ближайших записей по косинусному расстоянию векторов.
         '''
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return None
         self.curs.execute(
@@ -271,10 +271,7 @@ class ChemicalStructures():
         '''
         Получение N ближайших записей по расстоянию L1 для векторов.
         '''
-        if(not self.empty_db):
-            print("Database connection empty. First create it by Create_DB method!")
-            return None
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return None
         self.curs.execute(
@@ -286,7 +283,7 @@ class ChemicalStructures():
         '''
         Получение N ближайших записей по расстоянию L2 для векторов.
         '''
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return
         with self.conn.cursor() as cursor:
@@ -319,14 +316,14 @@ class ChemicalStructures():
    
 
     def get_inchi_by_pubchem_index(self, index):
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return None
         self.curs.execute(f"SELECT inchi FROM public.pubchem_database WHERE pubchem_index = '{index}';")
         return self.curs.fetchone()
     
     def get_inchi_list_by_pubchem_indexes(self, indexes):
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return
         self.curs.execute(f"SELECT inchi FROM public.pubchem_database WHERE pubchem_index in '{indexes}';")
@@ -398,7 +395,7 @@ class ChemicalStructures():
         :param chemical_structure_dict: A dictionary containing the chemical structure information.
         :return: The Inchi code for the chemical structure.
         """
-        if(not self.empty_db):
+        if(self.empty_db):
             print("Database connection empty. First create it by Create_DB method!")
             return None
         try:
