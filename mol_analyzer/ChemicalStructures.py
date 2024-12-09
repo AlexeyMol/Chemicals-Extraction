@@ -11,7 +11,6 @@ import os
 from .vectorization import vectorize_text
 from tqdm import tqdm
 import nltk
-from enum import Enum
 from .GNNT.task import *
 from .extraction import Extractor
 import pandas as pd
